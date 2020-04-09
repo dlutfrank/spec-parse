@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+#-- coding:UTF-8 --
 
-# 解析spec协议，生成协议文档
+# spec协议转换
+
 print('hello wolrd')
