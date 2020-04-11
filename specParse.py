@@ -5,7 +5,7 @@ import re
 # spec协议转换
 
 
-def paresJson(fileName):
+def paresJson(fileName, eventFilter=None, propFilter=None, actionFilter=None):
     f = open(fileName, mode='r')
     data = json.load(f)
     services = data['services']
@@ -23,22 +23,22 @@ def paresJson(fileName):
         iid = service['iid']
         if 'properties' in service:
             props = service['properties']
-            ps = parseProps(props, iid)
+            ps = parseProps(props, iid, propFilter)
             protocal['prop'].update(ps['names'])
             protocal['prop'].update(ps['ids'])
             consts['prop'].update(ps['consts'])
         if 'actions' in service:
             actions = service['actions']
-            acs = parseAction(actions, iid)
-            protocal['action'].update(ps['names'])
-            consts['action'].update(ps['consts'])
+            acs = parseAction(actions, iid, actionFilter)
+            protocal['action'].update(acs['names'])
+            consts['action'].update(acs['consts'])
         if 'events' in service:
             events = service['events']
-            ps = parseEvents(events, iid)
-            protocal['event'].update(ps['names'])
-            protocal['event'].update(ps['ids'])
-            consts['event'].update(ps['consts'])
-    return {'protocal': protocal, 'const': consts}
+            es = parseEvents(events, iid, eventFilter)
+            protocal['event'].update(es['names'])
+            protocal['event'].update(es['ids'])
+            consts['event'].update(es['consts'])
+    return {'protocal': protocal, 'consts': consts}
 
 
 # abc-edf -> abcEdf 短横线命名转换为驼峰式命名
@@ -52,7 +52,7 @@ def parseName(nameStr):
         return ''.join(ns)
 
 
-def parseAction(actions, sid):
+def parseAction(actions, sid, filter):
     names = {}
     consts = {}
     for action in actions:
@@ -63,12 +63,13 @@ def parseAction(actions, sid):
         name = parseName(oname)
         cname = oname.upper().replace('-', '_')
         # name -> id
-        names[name] = {'siid': sid, 'aiid': iid}
-        consts[cname] = name
+        if (not filter) or (not re.match(filter, '{}.{}'.format(sid, iid))):
+            names[name] = {'siid': sid, 'aiid': iid}
+            consts[cname] = name
     return {"names": names, "consts": consts}
 
 
-def parseProps(props, sid):
+def parseProps(props, sid, filter):
     names = {}
     ids = {}
     consts = {}
@@ -82,15 +83,16 @@ def parseProps(props, sid):
         cname = oname.upper().replace('-', '_')
         # id -> name
         idstr = '{}.{}'.format(sid, iid)
-        ids[idstr] = name
-        # name -> id
-        if ('write' in access) or ('notify' in access):
-            names[name] = {'siid': sid, 'piid': iid}
-            consts[cname] = name
+        if (not filter) or (not re.match(filter, idstr)):
+            ids[idstr] = name
+            # name -> id
+            if ('read' in access) and ('notify' in access):
+                names[name] = {'siid': sid, 'piid': iid}
+                consts[cname] = name
     return {"names": names, "ids": ids, "consts": consts}
 
 
-def parseEvents(events, sid):
+def parseEvents(events, sid, filter):
     names = {}
     ids = {}
     consts = {}
@@ -103,21 +105,43 @@ def parseEvents(events, sid):
         cname = oname.upper().replace('-', '_')
         # id -> name
         idstr = '{}.{}'.format(sid, iid)
-        ids[idstr] = name
-        # name -> id
-        names[name] = {'siid': sid, 'eiid': iid}
-        consts[cname] = name
+        if (not filter) or (not re.match(filter, idstr)):
+            ids[idstr] = name
+            # name -> id
+            names[name] = {'siid': sid, 'eiid': iid}
+            consts[cname] = name
     return {"names": names, "ids": ids, "consts": consts}
 
 
-def saveFile(data):
+def format(data):
+    d = re.sub('\"(\S+)\"(\s*:\s*)', lambda a: a.group(1) + a.group(2),
+               json.dumps(data,indent=2,sort_keys=True))
+    d = d.replace('\"', '\'')
+    return d
+
+
+def saveFile(data):    
     f = open('./protocal.js', 'w')
-    json.dump(data, f, indent=2, sort_keys=True)
+    f.write('export default ')
+    f.write(format(data['protocal']))
+    f = open('./Const.js', 'w')
+    f.write('const PROP = ')
+    consts = data['consts']
+    f.write(format(consts['prop']))
+    f.write('\nconst ACTION = ')
+    f.write(format(consts['action']))
+    f.write('\nconst EVENT = ')
+    f.write(format(consts['event']))
+    f.write('\n')
+    f.write('export { PROP, ACTION, EVENT }')
 
 
-def parse(fileName):
-    data = paresJson(fileName)
-    print(data)
+def parse(fileName, eventFilter=None, propFilter=None, actionFilter=None):
+    data = paresJson(fileName, eventFilter, propFilter, actionFilter)
     saveFile(data)
 
-parse('./example/light.json')
+
+parse('./example/light.json',
+      propFilter=r'(1.*)|(2.[2|4|5])|(4.[2-5])|(4.1[2-8])',
+      eventFilter=r'4.*',
+      actionFilter=r'(2.[1-2])|(4.[1|6|7])')
