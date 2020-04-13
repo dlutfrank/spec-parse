@@ -129,17 +129,18 @@ def saveFile(data, outPath='./'):
     f = open(protocalFile, 'w')
     f.write('export default ')
     f.write(format(data['protocal']))
+    f.write(';')
     constsFile = os.path.join(outPath, 'SpecConsts.js')
     f = open(constsFile, 'w')
     f.write('const PROP = ')
     consts = data['consts']
     f.write(format(consts['prop']))
-    f.write('\nconst ACTION = ')
+    f.write(';\nconst ACTION = ')
     f.write(format(consts['action']))
-    f.write('\nconst EVENT = ')
+    f.write(';\nconst EVENT = ')
     f.write(format(consts['event']))
-    f.write('\n')
-    f.write('export default { PROP, ACTION, EVENT }')
+    f.write(';\n')
+    f.write('export default { PROP, ACTION, EVENT };')
 
 def parse(fileName, eventFilter=None, propFilter=None, actionFilter=None, outPath='./'):
     data = paresJson(fileName, eventFilter, propFilter, actionFilter)
