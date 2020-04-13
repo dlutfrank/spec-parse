@@ -6,7 +6,6 @@ import argparse
 import os.path
 # spec协议转换
 
-
 def paresJson(fileName, eventFilter=None, propFilter=None, actionFilter=None):
     f = open(fileName, mode='r')
     data = json.load(f)
@@ -122,11 +121,16 @@ def format(data):
     return d
 
 
-def saveFile(data):
-    f = open('./protocal.js', 'w')
+def saveFile(data, outPath='./'):
+    if not os.path.exists(outPath):
+      os.makedirs(outPath)
+    
+    protocalFile = os.path.join(outPath, 'protocal.js')
+    f = open(protocalFile, 'w')
     f.write('export default ')
     f.write(format(data['protocal']))
-    f = open('./Const.js', 'w')
+    constsFile = os.path.join(outPath, 'SpecConsts.js')
+    f = open(constsFile, 'w')
     f.write('const PROP = ')
     consts = data['consts']
     f.write(format(consts['prop']))
@@ -135,12 +139,11 @@ def saveFile(data):
     f.write('\nconst EVENT = ')
     f.write(format(consts['event']))
     f.write('\n')
-    f.write('export { PROP, ACTION, EVENT }')
+    f.write('export default { PROP, ACTION, EVENT }')
 
-
-def parse(fileName, eventFilter=None, propFilter=None, actionFilter=None):
+def parse(fileName, eventFilter=None, propFilter=None, actionFilter=None, outPath='./'):
     data = paresJson(fileName, eventFilter, propFilter, actionFilter)
-    saveFile(data)
+    saveFile(data, outPath)
 
 
 # 参数解析
@@ -157,6 +160,10 @@ def main():
     parser.add_argument("-e",
                         "--eventFilter",
                         help=u'需要过滤掉的event(比如1.[2-10])，支持正则表达式')
+    parser.add_argument("-o",
+                    "--outPath",
+                    default='./',
+                    help=u'输出文件目录，默认为当前目录')
 
     args = parser.parse_args()
     if (args.path != None) and (os.path.exists(args.path)):
@@ -169,8 +176,9 @@ def main():
         parse(args.path,
               propFilter=parseConfig['propFilter'],
               actionFilter=parseConfig['actionFilter'],
-              eventFilter=parseConfig['eventFilter'])
-
+              eventFilter=parseConfig['eventFilter'],
+              outPath=parseConfig['outPath'],
+              )
 
 # parse('./example/light.json',
 #       propFilter=r'(1.*)|(2.[2|4|5])|(4.[2-5])|(4.1[2-8])',
