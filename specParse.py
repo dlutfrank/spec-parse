@@ -2,6 +2,8 @@
 #-- coding:UTF-8 --
 import json
 import re
+import argparse
+import os.path
 # spec协议转换
 
 
@@ -115,12 +117,12 @@ def parseEvents(events, sid, filter):
 
 def format(data):
     d = re.sub('\"(\S+)\"(\s*:\s*)', lambda a: a.group(1) + a.group(2),
-               json.dumps(data,indent=2,sort_keys=True))
+               json.dumps(data, indent=2, sort_keys=True))
     d = d.replace('\"', '\'')
     return d
 
 
-def saveFile(data):    
+def saveFile(data):
     f = open('./protocal.js', 'w')
     f.write('export default ')
     f.write(format(data['protocal']))
@@ -141,7 +143,39 @@ def parse(fileName, eventFilter=None, propFilter=None, actionFilter=None):
     saveFile(data)
 
 
-parse('./example/light.json',
-      propFilter=r'(1.*)|(2.[2|4|5])|(4.[2-5])|(4.1[2-8])',
-      eventFilter=r'4.*',
-      actionFilter=r'(2.[1-2])|(4.[1|6|7])')
+# 参数解析
+def main():
+    parser = argparse.ArgumentParser(description=u'将spec的json文件转换为协议文件')
+    parser.add_argument("path", help=u'spec的json文件路径')
+    parser.add_argument("-c", "--config", help=u'通过配置文件进行转换')
+    parser.add_argument("-p",
+                        "--propFilter",
+                        help=u'需要过滤掉的prop(比如1.*)，支持正则表达式')
+    parser.add_argument("-a",
+                        "--actionFilter",
+                        help=u'需要过滤掉的action(比如1.2)，支持正则表达式')
+    parser.add_argument("-e",
+                        "--eventFilter",
+                        help=u'需要过滤掉的event(比如1.[2-10])，支持正则表达式')
+
+    args = parser.parse_args()
+    if (args.path != None) and (os.path.exists(args.path)):
+        parseConfig = vars(args)
+        if (args.config != None) and (os.path.exists(args.config)):
+            f = open(args.config, 'r')
+            config = json.load(f)
+            if config != None:
+                parseConfig.update(config)
+        parse(args.path,
+              propFilter=parseConfig['propFilter'],
+              actionFilter=parseConfig['actionFilter'],
+              eventFilter=parseConfig['eventFilter'])
+
+
+# parse('./example/light.json',
+#       propFilter=r'(1.*)|(2.[2|4|5])|(4.[2-5])|(4.1[2-8])',
+#       eventFilter=r'4.*',
+#       actionFilter=r'(2.[1-2])|(4.[1|6|7])')
+
+if __name__ == '__main__':
+    main()
